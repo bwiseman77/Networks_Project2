@@ -1,31 +1,41 @@
 #include "../../inc/server_socket.h"
 #include "../../inc/cJSON.h"
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
+
 
 typedef struct Date Date;
 
 struct Date {
-	int month;
-	int day;
-	int year;
+	char month[10];
+	char day[10];
+	char year[10];
 };
 
-Date get_date(int d) {
-	Date date = {0};
-	date.year = d % 100;
-	date.day = (d / 100) % 100;
-	date.month = (d / 10000) % 100;
+void print_date(Date date) {
+	printf("%s\n", date.month);
+	printf("%s\n", date.day);
+	printf("%s\n", date.year);
+}
+
+Date get_date(char *d) {
+	Date date;
+	date.month[0] = d[0];
+	date.month[1] = d[1];
+	date.month[2] = '\0';
+	date.day[0] = d[2];
+	date.day[1] = d[3];
+	date.day[2] = '\0';
+	date.year[0] = d[4];
+	date.year[1] = d[5];
+	date.year[2] = '\0';
 
 	return date;
 }
 
-int put_date(Date date) {
-	return (((date.month * 100) + date.day) * 100) + date.year;
-}
-
-void print_date(Date date) {
-	printf("%d\n", date.month);
-	printf("%d\n", date.day);
-	printf("%d\n", date.year);
+void put_date(Date date, char *str) {
+	sprintf(str, "%s%s%s", date.month, date.day, date.year);	
 }
 
 typedef struct Event Event;
@@ -33,22 +43,26 @@ typedef struct Event Event;
 struct Event {
 	int valid;
 	Date date;
-	int time;
-	int duration;
+	char time[30];
+	char duration[30];
 	char name[256];
 	char description[2048];
 	char location[1024];
-	int id; 
+	char id[30]; 
 };
 
 void print_event(Event event) {
 	if (event.valid) {
 		puts("bad event");
+		printf("%d\n", event.valid);
 		return;
 	}
-	printf("%d\n", put_date(event.date));
-	printf("%d\n", event.time);
-	printf("%d\n", event.duration);
+	printf("%s\n", event.id);
+	char str[30];
+	put_date(event.date, str);
+	printf("%s\n", str);
+	printf("%s\n", event.time);
+	printf("%s\n", event.duration);
 	printf("%s\n", event.name);
 	if (event.description[0]) 
 		printf("%s\n", event.description);
@@ -68,34 +82,35 @@ Event create_event(char *buff) {
 	// Date
 	item = cJSON_GetObjectItemCaseSensitive(request, "date");
 	if (item == NULL) {
-		event.valid = 1;
+		event.valid = 2;
 		return event;
 	}
-	Date date = get_date(item->valueint);
+	Date date = get_date(item->valuestring);
 	event.date = date;
 
 	// Time
 	item = cJSON_GetObjectItemCaseSensitive(request, "time");
-	if (item == NULL) {
-		event.valid = 1;
+	if (item == NULL || item->valuestring == NULL ) {
+		event.valid = 3;
 		return event;
 	}
-	event.time = item->valueint;
+	strcpy(event.time, item->valuestring);
 
 	
 	// Duration
 	item = cJSON_GetObjectItemCaseSensitive(request, "duration");
-	if (item == NULL) {
-		event.valid = 1;
+	if (item == NULL || item->valuestring == NULL ) {
+		event.valid = 4;
 		return event;
 	}
-	event.duration = item->valueint;
+	strcpy(event.duration, item->valuestring);
 
 
 	// Name
 	item = cJSON_GetObjectItemCaseSensitive(request, "name");
-	if (item == NULL) {
-		event.valid = 1;
+
+	if (item == NULL || item->valuestring == NULL ) {
+		event.valid = 5;
 		return event;
 	}
 	strcpy(event.name, item->valuestring);
@@ -105,6 +120,10 @@ Event create_event(char *buff) {
 	// description
 	item = cJSON_GetObjectItemCaseSensitive(request, "description");
 	if (item != NULL) {	
+		if (item->valuestring == NULL ) {
+			event.valid = 6;
+			return event;
+		}
 		strcpy(event.description, item->valuestring);
 
 	}
@@ -112,10 +131,28 @@ Event create_event(char *buff) {
 	// location
 	item = cJSON_GetObjectItemCaseSensitive(request, "location");
 	if (item != NULL) {	
+		if (item->valuestring == NULL ) {
+			event.valid = 7;
+			return event;
+		}
 		strcpy(event.location, item->valuestring);
 
 	}
 
+	// id
+	item = cJSON_GetObjectItemCaseSensitive(request, "id");
+	if (item == NULL) {
+		char str[30];
+		put_date(event.date, str);
+		sprintf(event.id, "%s%s", str, event.time);
+	} else {
+		if (item->valuestring == NULL) {
+			event.valid = 8;
+			return event;
+		}
+		strcpy(event.id, item->valuestring);
+	}
+			
 	cJSON_Delete(request);
 	return event;
 }
@@ -124,10 +161,13 @@ char* event_to_string(Event event) {
 	if (event.valid) 
 		return NULL;
 	cJSON *event_json = cJSON_CreateObject();
-	
-	cJSON_AddNumberToObject(event_json, "date", put_date(event.date));
-	cJSON_AddNumberToObject(event_json, "time", event.time);
-	cJSON_AddNumberToObject(event_json, "duration", event.duration);
+	char str[30];
+	put_date(event.date, str);
+
+	cJSON_AddStringToObject(event_json, "date", str);
+	cJSON_AddStringToObject(event_json, "id", event.id);
+	cJSON_AddStringToObject(event_json, "time", event.time);
+	cJSON_AddStringToObject(event_json, "duration", event.duration);
 	cJSON_AddStringToObject(event_json, "name", event.name);
 	if (event.description[0])
 		cJSON_AddStringToObject(event_json, "description", event.description);
@@ -137,26 +177,184 @@ char* event_to_string(Event event) {
 	return cJSON_Print(event_json);
 }
 
+void write_event(char *path, Event event) {
+	FILE *file = fopen(path, "w+");
+
+	char *string = event_to_string(event);
+	fwrite(string, 1, (strlen(string) + 1), file);
+	fclose(file);
+}
+
+int update_event(char *path, char *field, char *value) {
+	FILE *infile = fopen(path, "r");
+
+	char buffer[BUFSIZ];
+	fread(buffer, 1, BUFSIZ, infile);
+	Event event = create_event(buffer);
+	if (!strcmp(field, "date")) {
+		event.date = get_date(value);
+	} else if (!strcmp(field, "time")) {
+		strcpy(event.time, value);	
+	} else if (!strcmp(field, "duration")) {
+		strcpy(event.duration, value);
+	} else if (!strcmp(field, "name")) {
+		strcpy(event.name, value);
+	} else if (!strcmp(field, "description")) {
+		strcpy(event.description, value);
+	} else if (!strcmp(field, "location")) {
+		strcpy(event.location, value);
+	}
+	fclose(infile);
+
+	write_event(path, event);
+
+	return 1;
+
+}
+
+int add_event(char *json, char *id) {
+	char path[40];
+	Event event = create_event(json);
+
+	if (event.valid) 
+		return 1;	
+	char *cal = "mycal";
+	char *year = event.date.year;
+	char *month = event.date.month;
+	char *day = event.date.day;
+	strcpy(id,event.id);
+
+
+	sprintf(path, "./data/%s", cal);
+	mkdir(path, 0777);
+
+	sprintf(path, "./data/%s/%s", cal, year);
+	mkdir(path, 0777);
+
+	sprintf(path, "./data/%s/%s/%s", cal, year, month);
+	mkdir(path, 0777);
+
+	sprintf(path, "./data/%s/%s/%s/%s", cal, year, month, day);
+	mkdir(path, 0777);
+
+	sprintf(path, "./data/%s/%s/%s/%s/%s.json", "mycal", year, month, day, id);
+	
+	write_event(path, event);	
+	
+	return 0;
+}
+
+Event get_event(char *path) {
+	char buffer[BUFSIZ];
+	FILE *infile = fopen(path, "r");
+	fread(buffer, 1, BUFSIZ, infile);
+	Event event = create_event(buffer);
+	return event;
+}
+
+int find_event(char *root, char *id, char dest[100][BUFSIZ]) {
+	int n = 0;
+	struct stat s;
+	stat(root, &s);
+	if (S_ISDIR(s.st_mode)) {
+		DIR *d = opendir(root);
+
+		for (struct dirent *e = readdir(d); e; e = readdir(d)) {
+			if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) {
+				continue;
+			}
+	
+			char path[BUFSIZ];
+			sprintf(path, "%s/%s", root, e->d_name);
+
+			stat(path, &s);
+			if (S_ISDIR(s.st_mode)) {
+				n += find_event(path, id, dest);
+			} else {
+
+				if (strstr(path, id) != NULL) {
+					strcpy(dest[n], path);
+					n++;
+				}
+			}
+		}
+
+		closedir(d);
+	}
+
+	return n;
+}
+
+int find_event_range(char *start, char *stop) {
+	char curr_day[30];
+	char dest[100][BUFSIZ];
+	strcpy(curr_day, start);
+
+	int num_events = 0;
+	while(strcmp(curr_day, stop)) {
+		int m;
+		if ((m = find_event("./data", curr_day, dest)) > 0) {
+			num_events+=m;
+
+			for (int i = 0; i < m; i++) {
+				char buffer[BUFSIZ];
+				FILE *infile = fopen(dest[i], "r");
+				fread(buffer, 1, BUFSIZ, infile);
+				Event event = create_event(buffer);
+				print_event(event);
+			}
+
+		}
+		
+		Date date = get_date(curr_day);
+
+		
+		int n = atoi(date.day) + 1;
+		if (n < 10) {
+			sprintf(date.day, "0%d", n);
+		} else {
+			sprintf(date.day, "%d", n);
+		}
+
+		if (atoi(date.day) > 31) {
+			strcpy(date.day, "00");
+			
+			int n = atoi(date.month) + 1;
+			if (n < 10) {
+				sprintf(date.month, "0%d", n);
+			} else {
+				sprintf(date.month, "%d", n);
+			}
+
+			if (atoi(date.month) > 12) {
+				strcpy(date.month, "00");
+					
+				int n = atoi(date.year) + 1;
+				if (n < 10) {
+					sprintf(date.year, "0%d", n);
+				} else {
+					sprintf(date.year, "%d", n);
+				}
+
+
+				if (atoi(date.year) > 99) {
+					strcpy(date.year, "00");
+				}
+			}
+		}
+
+		put_date(date, curr_day);
+
+
+	}	
+	return num_events;
+}
+
 int main(int argc, char *argv[]) {
 	
+	mkdir("./data", 0777);	
 	printf("Hello World\n");
-	char buff[BUFSIZ];
-
-	FILE *fp = fopen(argv[1], "r");
-	int n;
-	n = fread(buff, 1, BUFSIZ, fp);
-	buff[n-1] = '\0';
-	printf("%s %d\n", buff, n);
-	
-	Event event = create_event(buff);
-	print_event(event);	
-	char *message = event_to_string(event);
-	if (message) 
-		printf("%s\n", message);
-	event = create_event(message);
-	print_event(event);
-
-	char *port = argv[2];
+	char *port = argv[1];
 	int server_fd = socket_listen(port);
 	if (server_fd < 0)
 		return EXIT_FAILURE;
@@ -170,13 +368,69 @@ int main(int argc, char *argv[]) {
 		char buffer[BUFSIZ];
 			
 		recv(fd, buffer, BUFSIZ, 0);
-		printf("%s\n", buffer);
+		printf("message: %s", buffer);
+		char *cmd = strtok(buffer, " ");
+		if (!strcmp(cmd, "add")) {
+			puts("command: add");
+			char ID[BUFSIZ];
+			char *json = strtok(NULL, "\0");
+			if (add_event(json, ID)) {
+				puts("invalid event");
+			} else {
+				printf("event id: %s\n", ID);
+			}
+		} else if (!strcmp(cmd, "get")) {
+			puts("command: get");
 
-		Event event = create_event(buff);
-		print_event(event);	
+			char *id = strtok(NULL, "\n");
+			char dest[100][BUFSIZ];
+			int n;	
+			if ( (n = find_event("./data", id, dest)) > 0) {
+				for (int i = 0; i < n; i++) {
+					FILE *infile = fopen(dest[i], "r");
+					fread(buffer, 1, BUFSIZ, infile);
+					Event event = create_event(buffer);
+					print_event(event);
+				}
+			} else {
+				puts("could not find id");
+			}
+		} else if (!strcmp(cmd, "remove")) {
+			puts("command: remove");
+
+			char *id = strtok(NULL, "\n");
+			char dest[100][BUFSIZ];
+			if (find_event("./data", id, dest)) {
+				remove(dest[0]);				
+				puts("removed");
+			} else {
+				puts("could not find id");
+			}
+		} else if (!strcmp(cmd, "update")) {
+			puts("command: update");
+
+			char *id = strtok(NULL, " ");
+			char *field = strtok(NULL, " ");
+			char *value = strtok(NULL, "\n");
+
+			char dest[100][BUFSIZ];
+			if (find_event("./data", id, dest)) {
+				update_event(dest[0], field, value);			
+				puts("updated");
+			} else {
+				puts("could not find id");
+			}
+
+		} else if (!strcmp(cmd, "getrange")) {
+			puts("command: getrange");
+			char *start = strtok(NULL, " ");
+			char *stop = strtok(NULL, "\n");
+			int n = find_event_range(start, stop);
+			printf("%d events found\n", n);
+		} else if (!strcmp(cmd, "quit")) {
+			return 0;
+		}
 	}
-
-
 
 	return 0;
 }
