@@ -12,7 +12,6 @@ void sig_handler(int signo) {
 	if (signo == SIGINT) {
 	
 		int i;
-		printf("threads %d\n", thread_count);
 		for (i = 0; i < thread_count; i++) {
 			pthread_join(threads[i], NULL);
 		}
@@ -405,7 +404,7 @@ void *handle_request(void *args) {
 		if (add_event(json, ID)) {
 			puts("invalid event");
 		} else {
-			printf("mias new event id: %s\n", ID);
+			printf("event id: %s\n", ID);
 			char *msg = send_response("add", "mycal", ID, "true", " ", " ");
 			strcpy(buffer, msg);
 			buffer[strlen(msg) + 1] = '\0';
