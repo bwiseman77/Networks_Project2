@@ -3,7 +3,30 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <signal.h>
+#include <pthread.h>
+pthread_t threads[10];
+int thread_count = 0;
 
+void sig_handler(int signo) {
+	if (signo == SIGINT) {
+	
+		int i;
+		printf("threads %d\n", thread_count);
+		for (i = 0; i < thread_count; i++) {
+			pthread_join(threads[i], NULL);
+		}
+		exit(EXIT_SUCCESS);	
+
+	}
+
+}
+typedef struct Arg Arg;
+
+struct Arg {
+	char buffer[BUFSIZ];
+	int fd;
+};
 
 typedef struct Date Date;
 
@@ -174,7 +197,10 @@ char* event_to_string(Event event) {
 	if (event.description[0])
 		cJSON_AddStringToObject(event_json, "location", event.location);
 
-	return cJSON_Print(event_json);
+
+	char *string = cJSON_Print(event_json);
+	cJSON_Delete(event_json);
+	return string;
 }
 
 void write_event(char *path, Event event) {
@@ -182,6 +208,7 @@ void write_event(char *path, Event event) {
 
 	char *string = event_to_string(event);
 	fwrite(string, 1, (strlen(string) + 1), file);
+	free(string);
 	fclose(file);
 }
 
@@ -302,8 +329,8 @@ int find_event_range(char *start, char *stop) {
 				fread(buffer, 1, BUFSIZ, infile);
 				Event event = create_event(buffer);
 				print_event(event);
+				fclose(infile);
 			}
-
 		}
 		
 		Date date = get_date(curr_day);
@@ -350,8 +377,111 @@ int find_event_range(char *start, char *stop) {
 	return num_events;
 }
 
+char *send_response(char *cmd, char *cal, char *id, char *success, char *msg, char *data) {
+	cJSON *response = cJSON_CreateObject();
+
+	cJSON_AddStringToObject(response, "Command", cmd);
+	cJSON_AddStringToObject(response, "Calendar", cal);
+	cJSON_AddStringToObject(response, "id", id);
+	cJSON_AddStringToObject(response, "success", success);
+	cJSON_AddStringToObject(response, "message", msg);
+	cJSON_AddStringToObject(response, "data", data);
+
+	char *str = cJSON_Print(response);
+	cJSON_Delete(response);
+	return str;
+}
+
+
+void *handle_request(void *args) {
+	char buffer[BUFSIZ];	
+	Arg *arg = (Arg *)args;
+	int fd = arg->fd;
+	char *cmd = strtok(arg->buffer, " ");
+	if (!strcmp(cmd, "add")) {
+		puts("command: add");
+		char ID[BUFSIZ];
+		char *json = strtok(NULL, "\0");
+		if (add_event(json, ID)) {
+			puts("invalid event");
+		} else {
+			printf("mias new event id: %s\n", ID);
+			char *msg = send_response("add", "mycal", ID, "true", " ", " ");
+			strcpy(buffer, msg);
+			buffer[strlen(msg) + 1] = '\0';
+			send(fd, buffer, (strlen(buffer)+1), 0);
+			
+			printf("%s", buffer);
+			fflush(stdout);
+			free(msg);
+		}
+
+
+	} else if (!strcmp(cmd, "get")) {
+		puts("command: get");
+
+		char *id = strtok(NULL, "\n");
+		char dest[100][BUFSIZ];
+		int n;	
+		if ( (n = find_event("./data", id, dest)) > 0) {
+			for (int i = 0; i < n; i++) {
+				FILE *infile = fopen(dest[i], "r");
+				fread(buffer, 1, BUFSIZ, infile);
+				Event event = create_event(buffer);
+				print_event(event);
+			}
+		} else {
+			puts("could not find id");
+		}
+
+
+	} else if (!strcmp(cmd, "remove")) {
+		puts("command: remove");
+		char *id = strtok(NULL, "\n");
+		char dest[100][BUFSIZ];
+		if (find_event("./data", id, dest)) {
+			remove(dest[0]);				
+			puts("removed");
+		} else {
+			puts("could not find id");
+		}
+
+
+	} else if (!strcmp(cmd, "update")) {
+		puts("command: update");
+
+		char *id = strtok(NULL, " ");
+		char *field = strtok(NULL, " ");
+		char *value = strtok(NULL, "\n");
+		char dest[100][BUFSIZ];
+		if (find_event("./data", id, dest)) {
+			update_event(dest[0], field, value);			
+			puts("updated");
+		} else {
+			puts("could not find id");
+		}
+
+
+	} else if (!strcmp(cmd, "getrange")) {
+		puts("command: getrange");
+		char *start = strtok(NULL, " ");
+		char *stop = strtok(NULL, "\n");
+		int n = find_event_range(start, stop);
+		printf("%d events found\n", n);
+	}
+
+	return 0;	
+}
+
 int main(int argc, char *argv[]) {
-	
+	int mt = 0;
+	if (argc == 3) {
+		if (!strcmp(argv[2], "-mt")) {
+			mt = 1;
+		}
+	}
+	if (signal(SIGINT, sig_handler) != SIG_ERR) {
+	}
 	mkdir("./data", 0777);	
 	printf("Hello World\n");
 	char *port = argv[1];
@@ -369,66 +499,25 @@ int main(int argc, char *argv[]) {
 			
 		recv(fd, buffer, BUFSIZ, 0);
 		printf("message: %s", buffer);
-		char *cmd = strtok(buffer, " ");
-		if (!strcmp(cmd, "add")) {
-			puts("command: add");
-			char ID[BUFSIZ];
-			char *json = strtok(NULL, "\0");
-			if (add_event(json, ID)) {
-				puts("invalid event");
-			} else {
-				printf("event id: %s\n", ID);
-			}
-		} else if (!strcmp(cmd, "get")) {
-			puts("command: get");
 
-			char *id = strtok(NULL, "\n");
-			char dest[100][BUFSIZ];
-			int n;	
-			if ( (n = find_event("./data", id, dest)) > 0) {
-				for (int i = 0; i < n; i++) {
-					FILE *infile = fopen(dest[i], "r");
-					fread(buffer, 1, BUFSIZ, infile);
-					Event event = create_event(buffer);
-					print_event(event);
+		Arg args;
+		strcpy(args.buffer, buffer);
+		args.fd = fd;
+
+		if (mt) {
+			pthread_create(&threads[thread_count], NULL, handle_request, &args);
+			thread_count++;
+		
+			if (thread_count > 10) {
+				int i;
+				for (i = 0; i < 10; i++) {
+					pthread_join(threads[i], NULL);
 				}
-			} else {
-				puts("could not find id");
+				thread_count = 0;
 			}
-		} else if (!strcmp(cmd, "remove")) {
-			puts("command: remove");
-
-			char *id = strtok(NULL, "\n");
-			char dest[100][BUFSIZ];
-			if (find_event("./data", id, dest)) {
-				remove(dest[0]);				
-				puts("removed");
-			} else {
-				puts("could not find id");
-			}
-		} else if (!strcmp(cmd, "update")) {
-			puts("command: update");
-
-			char *id = strtok(NULL, " ");
-			char *field = strtok(NULL, " ");
-			char *value = strtok(NULL, "\n");
-
-			char dest[100][BUFSIZ];
-			if (find_event("./data", id, dest)) {
-				update_event(dest[0], field, value);			
-				puts("updated");
-			} else {
-				puts("could not find id");
-			}
-
-		} else if (!strcmp(cmd, "getrange")) {
-			puts("command: getrange");
-			char *start = strtok(NULL, " ");
-			char *stop = strtok(NULL, "\n");
-			int n = find_event_range(start, stop);
-			printf("%d events found\n", n);
-		} else if (!strcmp(cmd, "quit")) {
-			return 0;
+		} else {
+			pthread_create(&threads[0], NULL, handle_request, &args);
+			pthread_join(threads[0], NULL);
 		}
 	}
 
