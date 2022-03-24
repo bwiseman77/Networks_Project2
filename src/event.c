@@ -287,7 +287,7 @@ int add_event(char *json, char *id, char *cal) {
 	mkdir(path, 0777);
 
 	sprintf(path, "./data/%s/%s/%s/%s/%s.json", cal, year, month, day, id);
-	
+
 	write_event(path, event);	
 	
 	return 0;

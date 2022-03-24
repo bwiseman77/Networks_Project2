@@ -13,12 +13,14 @@ int main(int argc, char *argv[]) {
 	// set up with config
 	char buffer[BUFSIZ] = {0};
 	FILE *fp = fopen(".mycal", "r");
-	fread(buffer, 1, BUFSIZ, fp);
+	if (!fp) {puts("bad config"); fclose(fp) ;exit(EXIT_FAILURE); }
+	if (!fread(buffer, 1, BUFSIZ, fp)) {puts("bad read"); fclose(fp); exit(EXIT_FAILURE); }
 	fclose(fp);
     cJSON *config = cJSON_Parse(buffer);
 	cJSON *item = cJSON_GetObjectItemCaseSensitive(config, "port");
 	if (item == NULL) {
 		puts("invalid config file");
+		cJSON_Delete(config);
 		exit(EXIT_FAILURE);
 	}
 
@@ -57,7 +59,7 @@ int main(int argc, char *argv[]) {
 
 		// get message		
 		recv(fd, buffer, BUFSIZ, 0);
-		printf("message: %s", buffer);
+		printf("\nmessage: \n%s\n", buffer);
 
 		// create args to send to thread
 		Arg args;

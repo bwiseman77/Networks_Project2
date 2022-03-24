@@ -5,7 +5,7 @@ TARGETS= 	mycalserver mycal
 # variables
 HEADERS = $(wildcard inc/*.h)
 SERVER_OBJS = src/server.o src/server_socket.o src/event.o src/date.o src/cJSON.o src/server_func.o
-CLIENT_OBJS = src/client.o src/client_socket.o
+CLIENT_OBJS = src/client.o src/client_socket.o src/cJSON.o
 
 all: 		$(TARGETS)
 
@@ -20,4 +20,4 @@ mycalserver: $(SERVER_OBJS)
 
 clean:
 	@echo "cleaning up"
-	@rm -rf data/ $(SERVER_OBJS) $(CLIENT_OBJS) $(TARGETS)
+	@rm -fr data $(SERVER_OBJS) $(CLIENT_OBJS) $(TARGETS)

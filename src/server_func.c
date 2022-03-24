@@ -80,7 +80,7 @@ int send_response(int fd, char *cmd, char *cal, char *id, char *success, char *m
 	buffer[strlen(str) + 1] = '\0';
 	send(fd, buffer, (strlen(buffer)+1), 0);
 		
-	printf("%s", buffer);
+	printf("\nresponse :\n%s\n", buffer);
 	fflush(stdout);
 	free(str);
 
@@ -112,86 +112,79 @@ void *handle_request(void *args) {
 	
 
 	/* add command */
-	if (!strcmp(cmd, "add")) {
-		puts("command: add");
+
+	if (strstr(cmd, "add")) {
 		char *json = strtok(NULL, "\0");
 
 		if (add_event(json, idb, cal)) {
-			puts("invalid event");
 			send_response(fd, "add", cal, idb, "false", "invalid event", NULL, 0);
 		} else {
-			printf("event id: %s\n", idb);
 			send_response(fd, "add", cal, idb, "true", " ", NULL, 0);
 		}
 
-	/* get command */
-	} else if (!strcmp(cmd, "get")) {
-		puts("command: get");
-		id = strtok(NULL, "\n");
-		
-		if ( (n = find_event(path, id, dest)) > 0) {
-			for (int i = 0; i < n; i++) {
-				Event event = get_event(dest[i]);
-				print_event(event);
-			}
-
-			char data[SMALL_BUFF];
-			sprintf(data, "%d", n);
-			send_response(fd, "get", cal, id, "true", " ", dest, n);
-			
-		} else {
-			puts("could not find id");
-			send_response(fd, "get", cal, id, "false", "nothing on that day", dest, 0);
-		}
-
-	/* remove command */
-	} else if (!strcmp(cmd, "remove")) {
-		puts("command: remove");
-		id = strtok(NULL, "\n");
-
-		if (find_event(path, id, dest)) {
-			remove(dest[0]);				
-			puts("removed");
-			send_response(fd, "remove", cal, id, "true", " ", dest, 0);
-
-		} else {
-			puts("could not find id");
-			send_response(fd, "remove", cal, id, "false", "could not find event", dest, 0);
-		}
-
-	/* update command */
-	} else if (!strcmp(cmd, "update")) {
-		puts("command: update");
-
-		id = strtok(NULL, " ");
-		char *field = strtok(NULL, " ");
-		char *value = strtok(NULL, "\n");
-
-		if (find_event(path, id, dest)) {
-			update_event(dest[0], field, value);			
-			puts("updated");
-			send_response(fd, "update", cal, id, "true", " ", dest, 0);
-		} else {
-			puts("could not find id");
-			send_response(fd, "update", cal, id, "false", "could not find event", dest, 0);
-		}
-
 	/* getrange command */
-	} else if (!strcmp(cmd, "getrange")) {
-		puts("command: getrange");
+	} else if (strstr(cmd, "getrange")) {
 		char *start = strtok(NULL, " ");
 		char *stop = strtok(NULL, "\n");
 		if ((n = find_event_range(dest, start, stop)) > 0) {
 			printf("%d events found\n", n);
 			send_response(fd, "getrange", cal, " ", "true", " ",  dest, n);
 		} else {
-			puts("no events");
 			send_response(fd, "getrange", cal, " ", "true", "No events",  dest, n);
+		}
+
+	} else if (strstr(cmd, "get")) {
+		id = strtok(NULL, "\n");
+		
+		if ( (n = find_event(path, id, dest)) > 0) {
+			char data[SMALL_BUFF];
+			sprintf(data, "%d", n);
+			send_response(fd, "get", cal, id, "true", " ", dest, n);
+			
+		} else {
+			send_response(fd, "get", cal, id, "false", "nothing on that day", dest, 0);
+		}
+
+	/* remove command */
+	} else if (strstr(cmd, "remove")) {
+		id = strtok(NULL, "\n");
+
+		if (find_event(path, id, dest)) {
+			remove(dest[0]);				
+			send_response(fd, "remove", cal, id, "true", " ", dest, 0);
+
+		} else {
+			send_response(fd, "remove", cal, id, "false", "could not find event", dest, 0);
+		}
+
+	/* update command */
+	} else if (strstr(cmd, "update")) {
+		id = strtok(NULL, " ");
+		char *field = strtok(NULL, " ");
+		char *value = strtok(NULL, "\n");
+
+		if (find_event(path, id, dest)) {
+			update_event(dest[0], field, value);			
+			send_response(fd, "update", cal, id, "true", " ", dest, 0);
+		} else {
+			send_response(fd, "update", cal, id, "false", "could not find event", dest, 0);
+		}
+
+	/* get command */
+	} else if (strstr(cmd, "get")) {
+		id = strtok(NULL, "\n");
+		
+		if ( (n = find_event(path, id, dest)) > 0) {
+			char data[SMALL_BUFF];
+			sprintf(data, "%d", n);
+			send_response(fd, "get", cal, id, "true", " ", dest, n);
+			
+		} else {
+			send_response(fd, "get", cal, id, "false", "nothing on that day", dest, 0);
 		}
 
 	/* default */	
 	} else {
-		puts("invalid command");
 		send_response(fd, "unknown", cal, " ", " ", "invalid command", NULL, 0);
 	}
 
