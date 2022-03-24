@@ -1,4 +1,4 @@
-#include "../../inc/server_socket.h"
+#include "../inc/server_socket.h"
 
 /**
  * Create socket and bind to port

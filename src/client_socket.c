@@ -1,4 +1,4 @@
-#include "../../inc/client_socket.h"
+#include "../inc/client_socket.h"
 
 /** 
  * Get sockaddr for IPv4 or IPv6

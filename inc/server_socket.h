@@ -1,3 +1,6 @@
+#ifndef SERVER_SOCKET_H
+#define SERVER_SOCKET_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -13,3 +16,4 @@
 int socket_listen(const char *port);
 int socket_accept(int server_fd);
 
+#endif 
