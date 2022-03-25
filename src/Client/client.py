@@ -106,7 +106,7 @@ def add():
     elif not isValidDuration(calendarEntry["duration"]):
         error = "Client Error: Invalid dutration"
     else:
-        return f'{sys.argv[2]} {json.dumps(calendarEntry)}', error
+        return f'{sys.argv[1]} {sys.argv[2]} {json.dumps(calendarEntry)}', error
 
 def get():
     if len(sys.argv) != 4:
