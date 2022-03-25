@@ -1,4 +1,5 @@
 import sys, socket, json
+from subprocess import run
 
 BUFSIZ = 4096
 Commands = {"add", "get", "remove", "update", "getrange"}
@@ -6,6 +7,7 @@ Fields = {"date", "time", "duration", "name", "location", "description"}
 
 
 def main():
+    print(len(sys.argv))
     if len(sys.argv) == 1:
         print("No calendar specified")
         help()
@@ -15,51 +17,23 @@ def main():
         help()
         exit(-1)
 
-    event = None
+    msg = None
     error = None
     calendar = sys.argv[1]
     cmd = sys.argv[2]
     if cmd == "add":
-        calendarEntry = {"date": None, "time": None, "duration": None, "name": None}
-        for i in range(3, len(sys.argv), 2):
-            if sys.argv[i] not in Fields:
-                error = "Client Error: Invalid field name"
-            elif len(sys.argv) == i + 1:
-                error = "Client Error: No value entered for this field"
-            else:
-                calendarEntry[sys.argv[i]] = sys.argv[i+1]
-        for field in calendarEntry:
-            if calendarEntry[field] == None:
-                error = f"Required field unspecified: {field}"
-
-        if not isValidDate(calendarEntry["date"]):
-            error = "Client Error: Invalid date"
-        elif not isValidTime(calendarEntry["time"]):
-            error = "Client Error: Invalid time"
-        elif not isValidDuration(calendarEntry["duration"]):
-            error = "Client Error: Invalid dutration"
-        else:
-            event = calendarEntry
+        msg, error = add()
     elif cmd == "get":
-        if len(sys.argv) != 4:
-            error = "Client Error: Incorrect number of arguments"
-        else:
-            event = {"date": sys.argv[3]}
+        msg, error = get()
     elif cmd == "remove":
-        if len(sys.argv) != 4:
-            error = "Client Error: Incorrect number of arguments"
-        else:
-            event = {"id": sys.argv[3]}
+        msg, error = remove()
     elif cmd == "update":
-        if len(sys.argv) != 6:
-            error = "Client Error: Incorrect number of arguments"
-        else:
-            event = {"id": sys.argv[3], sys.argv[4]:sys.argv[5]}
+        msg, error = update()
     elif cmd == "getrange":
-        if len(sys.argv) != 5:
-            error = "Client Error: Incorrect number of arguments"
-        else:
-            event = {"startDate": sys.argv[3], "stopDate":sys.argv[4]}
+        msg, error = getrange()
+    elif cmd == "input":
+        input(sys.argv[3])
+        exit(0)
     else:
         error = "Client Error: Invalid command"
 
@@ -67,16 +41,16 @@ def main():
     host = "localhost"
     port = 41256
 
-    if error == None:
+    if msg != None:
         client_socket = connect(host, port)
         print(f"connected to {host}")
 
-        r = send_message(client_socket, cmd, event)
+        r = send_message(client_socket, msg)
         response = json.loads(r[:len(r)-1]) # trim null charachter
         print(response)
 
         close(client_socket)
-    else:
+    elif error != None:
         print(error)
 
 def isValidDate(date):
@@ -105,15 +79,76 @@ def connect(host, port):
 def close(client_socket):
     client_socket.close()
 
-def send_message(client_socket, cmd, event):
-    message = bytes(f"{cmd} {json.dumps(event)}", "utf-8")
-    print(f'sending: {cmd} {json.dumps(event)}')
+def send_message(client_socket, msg):
+    message = bytes(msg, "utf-8")
+    print(f'sending: {msg}')
     client_socket.send(message)
     data = client_socket.recv(BUFSIZ)
     return data
 
 def help():
     print("Usage:    ./mycal CalendarName action -> data for action <-")
+
+def add():
+    error = None
+    calendarEntry = {"date": None, "time": None, "duration": None, "name": None}
+    for i in range(3, len(sys.argv), 2):
+        if sys.argv[i] not in Fields:
+            error = "Client Error: Invalid field name"
+        elif len(sys.argv) == i + 1:
+            error = "Client Error: No value entered for this field"
+        else:
+            calendarEntry[sys.argv[i]] = sys.argv[i+1]
+    for field in calendarEntry:
+        if calendarEntry[field] == None:
+            error = f"Required field unspecified: {field}"
+
+    if not isValidDate(calendarEntry["date"]):
+        error = "Client Error: Invalid date"
+    elif not isValidTime(calendarEntry["time"]):
+        error = "Client Error: Invalid time"
+    elif not isValidDuration(calendarEntry["duration"]):
+        error = "Client Error: Invalid dutration"
+    else:
+        return f'{sys.argv[2]} {json.dumps(calendarEntry)}', error
+
+def get():
+    if len(sys.argv) != 4:
+        return None, "Client Error: Incorrect number of arguments"
+    else:
+        return f"{sys.argv[1]} get {sys.argv[3]}", None
+
+def remove():
+    if len(sys.argv) != 4:
+        return None, "Client Error: Incorrect number of arguments"
+    else:
+        return f"{sys.argv[1]} remove {sys.argv[3]}", None
+
+def update():
+    if len(sys.argv) != 6:
+        return None, "Client Error: Incorrect number of arguments"
+    else:
+        return f"{sys.argv[1]} update {sys.argv[3]} {sys.argv[4]} {sys.argv[5]}", None
+
+def getrange():
+    if len(sys.argv) != 5:
+        return None, "Client Error: Incorrect number of arguments"
+    else:
+        return f"{sys.argv[1]} getrange {sys.argv[3]} {sys.argv[4]}", None
+
+def input(file):
+    fd = open(file)
+    commands = json.load(fd)
+    fd.close()
+
+    for cmd in commands:
+        args = cmd["arguments"]
+        args.insert(0, cmd["command"])
+        args.insert(0, cmd["calendar"])
+        args.insert(0, "src/Client/client.py")
+        args.insert(0, "python")
+        print(args)
+        run(args)
 
 
 if __name__ == "__main__":
