@@ -112,25 +112,25 @@ def get():
     if len(sys.argv) != 4:
         return None, "Client Error: Incorrect number of arguments"
     else:
-        return f"{sys.argv[1]} get {sys.argv[3]}", None
+        return f"{sys.argv[1]} get {sys.argv[3]}\n", None
 
 def remove():
     if len(sys.argv) != 4:
         return None, "Client Error: Incorrect number of arguments"
     else:
-        return f"{sys.argv[1]} remove {sys.argv[3]}", None
+        return f"{sys.argv[1]} remove {sys.argv[3]}\n", None
 
 def update():
     if len(sys.argv) != 6:
         return None, "Client Error: Incorrect number of arguments"
     else:
-        return f"{sys.argv[1]} update {sys.argv[3]} {sys.argv[4]} {sys.argv[5]}", None
+        return f"{sys.argv[1]} update {sys.argv[3]} {sys.argv[4]} {sys.argv[5]}\n", None
 
 def getrange():
     if len(sys.argv) != 5:
         return None, "Client Error: Incorrect number of arguments"
     else:
-        return f"{sys.argv[1]} getrange {sys.argv[3]} {sys.argv[4]}", None
+        return f"{sys.argv[1]} getrange {sys.argv[3]} {sys.argv[4]}\n", None
 
 def input(file):
     fd = open(file)
