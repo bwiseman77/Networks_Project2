@@ -7,7 +7,6 @@ Fields = {"date", "time", "duration", "name", "location", "description"}
 
 
 def main():
-    print(len(sys.argv))
     if len(sys.argv) == 1:
         print("No calendar specified")
         help()
@@ -37,11 +36,8 @@ def main():
     else:
         error = "Client Error: Invalid command"
 
-    # print(response)
-    host = "localhost"
-    port = 41256
-
     if msg != None:
+        host, port = getaddrinfo()
         client_socket = connect(host, port)
         print(f"connected to {host}")
 
@@ -147,9 +143,13 @@ def input(file):
         args.insert(0, cmd["calendar"])
         args.insert(0, "src/Client/client.py")
         args.insert(0, "python")
-        print(args)
         run(args)
 
+def getaddrinfo():
+    fd = open(".mycal")
+    addrinfo = json.load(fd)
+    print(addrinfo["servername"], addrinfo["port"])
+    return addrinfo["servername"], int(addrinfo["port"])
 
 if __name__ == "__main__":
     main()
