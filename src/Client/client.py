@@ -140,7 +140,7 @@ def input(file):
     for cmd in commands:
         args = cmd["arguments"]
         args.insert(0, cmd["command"])
-        args.insert(0, cmd["calendar"])
+        args.insert(0, sys.argv[1])
         args.insert(0, "src/Client/client.py")
         args.insert(0, "python")
         run(args)
