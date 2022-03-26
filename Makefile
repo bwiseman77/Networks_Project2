@@ -9,11 +9,13 @@ SERVER_OBJS = src/server.o src/server_socket.o src/event.o src/date.o src/cJSON.
 
 all: 		$(TARGETS)
 
-src/%.o: src/%.c
-	$(CC) $(CFLAGS) -c -o $@ $^
+src/%.o: src/%.c $(HEADERS)
+	@echo Compiling $@...
+	@$(CC) $(CFLAGS) -c -o $@ $<
 
-mycalserver: $(SERVER_OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+mycalserver: $(SERVER_OBJS) $(HEADERS)
+	@echo Compiling $@...
+	@$(CC) $(CFLAGS) -o $@ $^
 
 clean:
 	@echo "cleaning up"
