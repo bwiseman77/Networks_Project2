@@ -182,11 +182,14 @@ char* event_to_string(Event event) {
  * @param event 	event to write
  **/
 void write_event(char *path, Event event) {
+	extern pthread_mutex_t Lock;
+	pthread_mutex_lock(&Lock);
 	FILE *file = fopen(path, "w+");
 	char *string = event_to_string(event);
 	fwrite(string, 1, (strlen(string) + 1), file);
 	free(string);
 	fclose(file);
+	pthread_mutex_unlock(&Lock);
 }
 
 /**
@@ -196,8 +199,9 @@ void write_event(char *path, Event event) {
  * @return event 	event at path
  **/
 Event get_event(char *path) {
+	extern pthread_mutex_t Lock;
+	pthread_mutex_lock(&Lock);
 	Event event = {0};
-
 	char buffer[BUFSIZ];
 	FILE *infile = fopen(path, "r");
 	if (!infile) {
@@ -209,6 +213,7 @@ Event get_event(char *path) {
 	}
 	event = create_event(buffer);
 	fclose(infile);
+	pthread_mutex_unlock(&Lock);
 	return event;
 }
 
@@ -366,6 +371,7 @@ int find_event(char *root, char *str, char dest[100][BUFSIZ]) {
 				id = strtok(NULL, "/");
 				// file
 				id = strtok(NULL, ".");
+
 				if (!strcmp(id, str)) {
 					strcpy(dest[n], path);
 					n++;
@@ -375,10 +381,12 @@ int find_event(char *root, char *str, char dest[100][BUFSIZ]) {
 				Event event = get_event(path);
 				char date[BUFSIZ];
 				put_date(event.date, date);
-				if (!strcmp(date, str) && id[0] == '.') {
+
+				if (!strcmp(date, str) && id[0] != '.') {
 					strcpy(dest[n], path);
 					n++;
 				}
+
 
 			}
 		}
@@ -395,7 +403,7 @@ int find_event(char *root, char *str, char dest[100][BUFSIZ]) {
  * @param stop 			stop day
  * @return num_events 	number of events found
  **/
-int find_event_range(char dest[100][BUFSIZ], char *start, char *stop) {
+int find_event_range(char dest[100][BUFSIZ], char *start, char *stop, char *cal) {
 	// copy start day to curr_day
 	char curr_day[30];
 	strcpy(curr_day, start);
@@ -406,14 +414,16 @@ int find_event_range(char dest[100][BUFSIZ], char *start, char *stop) {
 	// while not passed stop day 
 	while (reachedEnd) {
 		// check last day
-		puts("hello there");
+
 		if (!strcmp(curr_day, stop))
 			reachedEnd = 0;
 
 		// for given day, find events and add to dest
 		int m;
 		char d[100][BUFSIZ];
-		if ((m = find_event("./data", curr_day, d)) > 0) {
+		char path[BUFSIZ];
+		sprintf(path, "./data/%s", cal);
+		if ((m = find_event(path, curr_day, d)) > 0) {
 			for (int i = num_events; i < num_events + m; i++) {
 				strcpy(dest[i], d[i-num_events]);
 			}

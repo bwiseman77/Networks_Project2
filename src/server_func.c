@@ -116,6 +116,7 @@ void *handle_request(void *args) {
 	char *cmd = strtok(NULL, " ");
 
 	char path[BUFSIZ];
+	char smsg[BUFSIZ];
 	sprintf(path, "./data/%s", cal);
 	
 	/* add command */
@@ -132,9 +133,10 @@ void *handle_request(void *args) {
 	} else if (strstr(cmd, "getrange")) {
 		char *start = strtok(NULL, " ");
 		char *stop = strtok(NULL, "\n");
-		if ((n = find_event_range(dest, start, stop)) > 0) {
+		if ((n = find_event_range(dest, start, stop, cal)) > 0) {
 			printf("%d events found\n", n);
-			send_response(fd, "getrange", cal, " ", "true", " ",  dest, n);
+			sprintf(smsg, "%d event(s) found", n);
+			send_response(fd, "getrange", cal, " ", "true", smsg,  dest, n);
 		} else {
 			send_response(fd, "getrange", cal, " ", "true", "No events",  dest, n);
 		}
@@ -173,13 +175,14 @@ void *handle_request(void *args) {
 			send_response(fd, "get", cal, id, "true", " ", dest, n);
 			
 		} else {
-			send_response(fd, "get", cal, id, "false", "nothing on that day", dest, 0);
+			send_response(fd, "get", cal, id, "false", "could not find event", dest, 0);
 		}
 
 	/* default */	
 	} else {
 		send_response(fd, "unknown", cal, " ", " ", "invalid command", NULL, 0);
 	}
+
 
 	return 0;	
 }

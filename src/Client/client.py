@@ -43,7 +43,7 @@ def main():
 
         r = send_message(client_socket, msg)
         response = json.loads(r[:len(r)-1]) # trim null charachter
-        print(response)
+        print(json.dumps(response, indent=4))
 
         close(client_socket)
     elif error != None:
@@ -78,6 +78,7 @@ def close(client_socket):
 def send_message(client_socket, msg):
     message = bytes(msg, "utf-8")
     print(f'sending: {msg}')
+
     client_socket.send(message)
     data = client_socket.recv(BUFSIZ)
     return data
@@ -98,7 +99,6 @@ def add():
     for field in calendarEntry:
         if calendarEntry[field] == None:
             error = f"Required field unspecified: {field}"
-
     if not isValidDate(calendarEntry["date"]):
         error = "Client Error: Invalid date"
     elif not isValidTime(calendarEntry["time"]):
@@ -112,25 +112,25 @@ def get():
     if len(sys.argv) != 4:
         return None, "Client Error: Incorrect number of arguments"
     else:
-        return f"{sys.argv[1]} get {sys.argv[3]}\n", None
+        return f"{sys.argv[1]} get {sys.argv[3]}\n\0", None
 
 def remove():
     if len(sys.argv) != 4:
         return None, "Client Error: Incorrect number of arguments"
     else:
-        return f"{sys.argv[1]} remove {sys.argv[3]}\n", None
+        return f"{sys.argv[1]} remove {sys.argv[3]}\n\0", None
 
 def update():
     if len(sys.argv) != 6:
         return None, "Client Error: Incorrect number of arguments"
     else:
-        return f"{sys.argv[1]} update {sys.argv[3]} {sys.argv[4]} {sys.argv[5]}\n", None
+        return f"{sys.argv[1]} update {sys.argv[3]} {sys.argv[4]} {sys.argv[5]}\n\0", None
 
 def getrange():
     if len(sys.argv) != 5:
         return None, "Client Error: Incorrect number of arguments"
     else:
-        return f"{sys.argv[1]} getrange {sys.argv[3]} {sys.argv[4]}\n", None
+        return f"{sys.argv[1]} getrange {sys.argv[3]} {sys.argv[4]}\n\0", None
 
 def input(file):
     fd = open(file)

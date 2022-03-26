@@ -7,6 +7,7 @@
 int thread_count = 0;
 pthread_t threads[MAX_THREADS] = {0};
 int id_count = 0;
+pthread_mutex_t Lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* main execution */
 
