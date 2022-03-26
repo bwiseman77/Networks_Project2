@@ -1,5 +1,5 @@
-#include "../inc/client_socket.h"
-#include "../inc/cJSON.h"
+#include "mycal/client_socket.h"
+#include "mycal/cJSON.h"
 
 int main(int argc, char *argv[]) {
 	char buffer[BUFSIZ];

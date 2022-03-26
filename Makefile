@@ -1,6 +1,6 @@
 CC= 		gcc
 
-CFLAGS= 	-g -Wall -std=gnu99 -pthread 
+CFLAGS= 	-g -Wall -std=gnu99 -Iinclude -pthread 
 TARGETS= 	mycalserver
 
 # variables

@@ -3,8 +3,8 @@
 #ifndef EVENT_H
 #define EVENT_H
 
-#include "./cJSON.h"
-#include "./date.h"
+#include "mycal/cJSON.h"
+#include "mycal/date.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

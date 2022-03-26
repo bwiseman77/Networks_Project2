@@ -1,6 +1,6 @@
 /* server_func.c */
 
-#include "../inc/server_func.h"
+#include "mycal/server_func.h"
 
 /* Functions */
 

@@ -1,6 +1,6 @@
 /* event.c */
 
-#include "../inc/event.h"
+#include "mycal/event.h"
 
 /**
  * Print event to stdout

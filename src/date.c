@@ -1,5 +1,5 @@
 /* date.c */
-#include "../inc/date.h"
+#include "mycal/date.h"
 
 /**
  * Prints Date to stdout

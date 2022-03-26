@@ -1,9 +1,9 @@
 #ifndef SERVER_FUNC_H
 #define SERVER_FUNC_H
 
-#include "server_socket.h"
-#include "cJSON.h"
-#include "event.h"
+#include "mycal/server_socket.h"
+#include "mycal/cJSON.h"
+#include "mycal/event.h"
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
