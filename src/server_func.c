@@ -17,6 +17,11 @@ void sig_handler(int signo) {
 		for (int i = 0; i < thread_count; i++) {
 			pthread_join(threads[i], NULL);
 		}
+
+		extern int id_count;
+		FILE *cfile = fopen("./data/count.txt", "w+");
+		fprintf(cfile, "%d", id_count);
+		fclose(cfile);
 		exit(EXIT_SUCCESS);	
 	}
 }
@@ -52,8 +57,11 @@ int send_response(int fd, char *cmd, char *cal, char *id, char *success, char *m
 	// create data json
 	// loop through events and add them to data
 	for (int i = 0; i < n; i++) {
+
 		sprintf(c, "%d", i);
+
 		Event event = get_event(dest[i]);
+
 		cJSON *event_json = cJSON_CreateObject();
 		char str[SMALL_BUFF];
 		put_date(event.date, str);
@@ -108,11 +116,10 @@ void *handle_request(void *args) {
 	char *cmd = strtok(NULL, " ");
 
 	char path[BUFSIZ];
+	char smsg[BUFSIZ];
 	sprintf(path, "./data/%s", cal);
 	
-
 	/* add command */
-
 	if (strstr(cmd, "add")) {
 		char *json = strtok(NULL, "\0");
 
@@ -126,23 +133,12 @@ void *handle_request(void *args) {
 	} else if (strstr(cmd, "getrange")) {
 		char *start = strtok(NULL, " ");
 		char *stop = strtok(NULL, "\n");
-		if ((n = find_event_range(dest, start, stop)) > 0) {
+		if ((n = find_event_range(dest, start, stop, cal)) > 0) {
 			printf("%d events found\n", n);
-			send_response(fd, "getrange", cal, " ", "true", " ",  dest, n);
+			sprintf(smsg, "%d event(s) found", n);
+			send_response(fd, "getrange", cal, " ", "true", smsg,  dest, n);
 		} else {
 			send_response(fd, "getrange", cal, " ", "true", "No events",  dest, n);
-		}
-
-	} else if (strstr(cmd, "get")) {
-		id = strtok(NULL, "\n");
-		
-		if ( (n = find_event(path, id, dest)) > 0) {
-			char data[SMALL_BUFF];
-			sprintf(data, "%d", n);
-			send_response(fd, "get", cal, id, "true", " ", dest, n);
-			
-		} else {
-			send_response(fd, "get", cal, id, "false", "nothing on that day", dest, 0);
 		}
 
 	/* remove command */
@@ -162,7 +158,6 @@ void *handle_request(void *args) {
 		id = strtok(NULL, " ");
 		char *field = strtok(NULL, " ");
 		char *value = strtok(NULL, "\n");
-
 		if (find_event(path, id, dest)) {
 			update_event(dest[0], field, value);			
 			send_response(fd, "update", cal, id, "true", " ", dest, 0);
@@ -173,20 +168,21 @@ void *handle_request(void *args) {
 	/* get command */
 	} else if (strstr(cmd, "get")) {
 		id = strtok(NULL, "\n");
-		
+
 		if ( (n = find_event(path, id, dest)) > 0) {
 			char data[SMALL_BUFF];
 			sprintf(data, "%d", n);
 			send_response(fd, "get", cal, id, "true", " ", dest, n);
 			
 		} else {
-			send_response(fd, "get", cal, id, "false", "nothing on that day", dest, 0);
+			send_response(fd, "get", cal, id, "false", "could not find event", dest, 0);
 		}
 
 	/* default */	
 	} else {
 		send_response(fd, "unknown", cal, " ", " ", "invalid command", NULL, 0);
 	}
+
 
 	return 0;	
 }

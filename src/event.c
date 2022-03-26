@@ -49,9 +49,12 @@ void print_event(Event event) {
  * Valid member is set to different values for different errors
  *
  * @param buff 		buffer to make event from
- * @return event 	new event
+ * return event 	new event
  **/
 Event create_event(char *buff) {
+	extern int id_count;
+
+
 	/* initialize event */
 
 	Event event = {0};
@@ -124,9 +127,8 @@ Event create_event(char *buff) {
 	// id
 	item = cJSON_GetObjectItemCaseSensitive(request, "id");
 	if (item == NULL) {
-		char str[30];
-		put_date(event.date, str);
-		sprintf(event.id, "%s%s", str, event.time);
+		sprintf(event.id, "%d", id_count);
+		id_count++;
 	} else {
 		if (item->valuestring == NULL) {
 			event.valid = 8;
@@ -180,11 +182,14 @@ char* event_to_string(Event event) {
  * @param event 	event to write
  **/
 void write_event(char *path, Event event) {
+	extern pthread_mutex_t Lock;
+	pthread_mutex_lock(&Lock);
 	FILE *file = fopen(path, "w+");
 	char *string = event_to_string(event);
 	fwrite(string, 1, (strlen(string) + 1), file);
 	free(string);
 	fclose(file);
+	pthread_mutex_unlock(&Lock);
 }
 
 /**
@@ -194,8 +199,9 @@ void write_event(char *path, Event event) {
  * @return event 	event at path
  **/
 Event get_event(char *path) {
+	extern pthread_mutex_t Lock;
+	pthread_mutex_lock(&Lock);
 	Event event = {0};
-
 	char buffer[BUFSIZ];
 	FILE *infile = fopen(path, "r");
 	if (!infile) {
@@ -206,6 +212,8 @@ Event get_event(char *path) {
 		event.valid = 1;		
 	}
 	event = create_event(buffer);
+	fclose(infile);
+	pthread_mutex_unlock(&Lock);
 	return event;
 }
 
@@ -220,12 +228,26 @@ Event get_event(char *path) {
 int update_event(char *path, char *field, char *value) {
 
 	// make event from file and set new field
-	Event event = get_event(path);
+	Event event = {0};
+	event = get_event(path);
+
 	if (event.valid) 
 		return 0;
 
 	if (!strcmp(field, "date")) {
+		remove(path);
+		char *cal = strtok(path, "/");
+		cal = strtok(NULL, "/");
+		cal = strtok(NULL, "/");
 		event.date = get_date(value);
+		char *str = event_to_string(event);
+		char id[BUFSIZ];
+		add_event(str, id, cal);
+		free(str);
+
+		return 1;
+		
+
 	} else if (!strcmp(field, "time")) {
 		strcpy(event.time, value);	
 	} else if (!strcmp(field, "duration")) {
@@ -233,7 +255,7 @@ int update_event(char *path, char *field, char *value) {
 	} else if (!strcmp(field, "name")) {
 		strcpy(event.name, value);
 	} else if (!strcmp(field, "description")) {
-		strcpy(event.description, value);
+	strcpy(event.description, value);
 	} else if (!strcmp(field, "location")) {
 		strcpy(event.location, value);
 	}
@@ -257,6 +279,7 @@ int add_event(char *json, char *id, char *cal) {
 
 	// create event
 	Event event = create_event(json);
+
 
 	// check if valid event
 	if (event.valid) 
@@ -302,7 +325,7 @@ int add_event(char *json, char *id, char *cal) {
  * @param dest 		array of paths to each event on day
  * @return n 		number of events found
  **/ 
-int find_event(char *root, char *id, char dest[100][BUFSIZ]) {
+int find_event(char *root, char *str, char dest[100][BUFSIZ]) {
 	// Since event file name is build from day/id, use same fucntion to look for id or day
 	// for day, if multiple events on same day, they are put into dest
 	
@@ -319,7 +342,7 @@ int find_event(char *root, char *id, char dest[100][BUFSIZ]) {
 			if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) {
 				continue;
 			}
-	
+
 			// get path
 			char path[BUFSIZ];
 			sprintf(path, "%s/%s", root, e->d_name);
@@ -328,17 +351,47 @@ int find_event(char *root, char *id, char dest[100][BUFSIZ]) {
 			// if dir, recurse
 			// else, check if matching file
 			if (S_ISDIR(s.st_mode)) {
-				n += find_event(path, id, dest);
+				n += find_event(path, str, dest);
 			} else {
-				if (strstr(path, id) != NULL) {
+
+				// search for day or id
+				char b[BUFSIZ];
+				strcpy(b, path);
+				// .
+				char *id = strtok(b, "/");
+				// data
+				id = strtok(NULL, "/");
+				// cal
+				id = strtok(NULL, "/");
+				// year
+				id = strtok(NULL, "/");
+				// month
+				id = strtok(NULL, "/");
+				// day
+				id = strtok(NULL, "/");
+				// file
+				id = strtok(NULL, ".");
+
+				if (!strcmp(id, str)) {
 					strcpy(dest[n], path);
 					n++;
 				}
+
+
+				Event event = get_event(path);
+				char date[BUFSIZ];
+				put_date(event.date, date);
+
+				if (!strcmp(date, str) && id[0] != '.') {
+					strcpy(dest[n], path);
+					n++;
+				}
+
+
 			}
 		}
 		closedir(d);
 	}
-
 	return n;
 }
 
@@ -350,7 +403,7 @@ int find_event(char *root, char *id, char dest[100][BUFSIZ]) {
  * @param stop 			stop day
  * @return num_events 	number of events found
  **/
-int find_event_range(char dest[100][BUFSIZ], char *start, char *stop) {
+int find_event_range(char dest[100][BUFSIZ], char *start, char *stop, char *cal) {
 	// copy start day to curr_day
 	char curr_day[30];
 	strcpy(curr_day, start);
@@ -361,14 +414,16 @@ int find_event_range(char dest[100][BUFSIZ], char *start, char *stop) {
 	// while not passed stop day 
 	while (reachedEnd) {
 		// check last day
-		puts("hello there");
+
 		if (!strcmp(curr_day, stop))
 			reachedEnd = 0;
 
 		// for given day, find events and add to dest
 		int m;
 		char d[100][BUFSIZ];
-		if ((m = find_event("./data", curr_day, d)) > 0) {
+		char path[BUFSIZ];
+		sprintf(path, "./data/%s", cal);
+		if ((m = find_event(path, curr_day, d)) > 0) {
 			for (int i = num_events; i < num_events + m; i++) {
 				strcpy(dest[i], d[i-num_events]);
 			}

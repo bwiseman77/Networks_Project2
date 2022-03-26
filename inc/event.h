@@ -11,6 +11,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <pthread.h>
 
 /* Structures */
 
@@ -38,7 +39,7 @@ int 		update_event(char *, char *, char *);
 int 		add_event(char *, char *, char *);
 Event 		get_event(char *);
 int 		find_event(char *, char *, char [100][BUFSIZ]);
-int 		find_event_range(char [100][BUFSIZ], char *, char *);
+int 		find_event_range(char [100][BUFSIZ], char *, char *, char *);
 
 #endif
 
