@@ -6,16 +6,30 @@
 
 int thread_count = 0;
 pthread_t threads[MAX_THREADS] = {0};
+int id_count = 0;
 
 /* main execution */
 
 int main(int argc, char *argv[]) {
 	// set up with config
 	char buffer[BUFSIZ] = {0};
+
+	FILE *cfile = fopen("./data/count.txt", "r");
+	if (!cfile) {
+		id_count = 0;
+	} else {
+		fscanf(cfile, "%d", &id_count);
+		fclose(cfile);
+	}
+	
+
+	// check mycal file
 	FILE *fp = fopen(".mycal", "r");
 	if (!fp) {puts("bad config"); fclose(fp) ;exit(EXIT_FAILURE); }
 	if (!fread(buffer, 1, BUFSIZ, fp)) {puts("bad read"); fclose(fp); exit(EXIT_FAILURE); }
 	fclose(fp);
+
+	// read config
     cJSON *config = cJSON_Parse(buffer);
 	cJSON *item = cJSON_GetObjectItemCaseSensitive(config, "port");
 	if (item == NULL) {
@@ -23,7 +37,6 @@ int main(int argc, char *argv[]) {
 		cJSON_Delete(config);
 		exit(EXIT_FAILURE);
 	}
-
 	char port[SMALL_BUFF];
 	strcpy(port, item->valuestring);
 	cJSON_Delete(config);
