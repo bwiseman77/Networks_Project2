@@ -39,15 +39,30 @@ def main():
     if msg != None:
         host, port = getaddrinfo()
         client_socket = connect(host, port)
-        print(f"connected to {host}")
 
         r = send_message(client_socket, msg)
         response = json.loads(r[:len(r)-1]) # trim null charachter
-        print(json.dumps(response, indent=4))
+		
+        print_msg(response)
 
         close(client_socket)
     elif error != None:
         print(error)
+
+def print_msg(json):
+    msg = json["message"]
+    if msg == " ":
+        return    
+    print(msg)
+    if len(json["data"].keys()) != 0:
+        for event in json["data"].keys():
+            if event != "0":
+                 print(" ")
+            print(f"event {int(event) + 1}")
+            for item in json["data"][event].keys():
+                print("{:<10} : {:<10}".format(item, json["data"][event][item]))
+    print(" ")
+    
 
 def isValidDate(date):
     if len(date) == 6 and date.isnumeric():
@@ -77,7 +92,7 @@ def close(client_socket):
 
 def send_message(client_socket, msg):
     message = bytes(msg, "utf-8")
-    print(f'sending: {msg}')
+    #print(f'sending: {msg}')
 
     client_socket.send(message)
     data = client_socket.recv(BUFSIZ)
@@ -148,7 +163,7 @@ def input(file):
 def getaddrinfo():
     fd = open(".mycal")
     addrinfo = json.load(fd)
-    print(addrinfo["servername"], addrinfo["port"])
+    #print(addrinfo["servername"], addrinfo["port"])
     return addrinfo["servername"], int(addrinfo["port"])
 
 if __name__ == "__main__":

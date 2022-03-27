@@ -122,11 +122,11 @@ void *handle_request(void *args) {
 	/* add command */
 	if (strstr(cmd, "add")) {
 		char *json = strtok(NULL, "\0");
-
 		if (add_event(json, idb, cal)) {
 			send_response(fd, "add", cal, idb, "false", "invalid event", NULL, 0);
 		} else {
-			send_response(fd, "add", cal, idb, "true", " ", NULL, 0);
+			sprintf(smsg, "added event in %s with id %s", cal, idb);
+			send_response(fd, "add", cal, idb, "true", smsg, NULL, 0);
 		}
 
 	/* getrange command */
@@ -135,7 +135,7 @@ void *handle_request(void *args) {
 		char *stop = strtok(NULL, "\n");
 		if ((n = find_event_range(dest, start, stop, cal)) > 0) {
 			printf("%d events found\n", n);
-			sprintf(smsg, "%d event(s) found", n);
+			sprintf(smsg, "%d event(s) found from %s to %s", n, start, stop);
 			send_response(fd, "getrange", cal, " ", "true", smsg,  dest, n);
 		} else {
 			send_response(fd, "getrange", cal, " ", "true", "No events",  dest, n);
@@ -146,8 +146,9 @@ void *handle_request(void *args) {
 		id = strtok(NULL, "\n");
 
 		if (find_event(path, id, dest)) {
-			remove(dest[0]);				
-			send_response(fd, "remove", cal, id, "true", " ", dest, 0);
+			remove(dest[0]);
+			sprintf(smsg, "removed event %s", id);		
+			send_response(fd, "remove", cal, id, "true", smsg, dest, 0);
 
 		} else {
 			send_response(fd, "remove", cal, id, "false", "could not find event", dest, 0);
@@ -159,8 +160,9 @@ void *handle_request(void *args) {
 		char *field = strtok(NULL, " ");
 		char *value = strtok(NULL, "\n");
 		if (find_event(path, id, dest)) {
-			update_event(dest[0], field, value);			
-			send_response(fd, "update", cal, id, "true", " ", dest, 0);
+			update_event(dest[0], field, value);
+			sprintf(smsg, "updated event %s's field %s to %s", id, field, value);			
+			send_response(fd, "update", cal, id, "true", smsg, dest, 0);
 		} else {
 			send_response(fd, "update", cal, id, "false", "could not find event", dest, 0);
 		}
@@ -172,7 +174,9 @@ void *handle_request(void *args) {
 		if ( (n = find_event(path, id, dest)) > 0) {
 			char data[SMALL_BUFF];
 			sprintf(data, "%d", n);
-			send_response(fd, "get", cal, id, "true", " ", dest, n);
+
+			sprintf(smsg, "%d event(s) found on event %s", n, id);
+			send_response(fd, "get", cal, id, "true", smsg, dest, n);
 			
 		} else {
 			send_response(fd, "get", cal, id, "false", "could not find event", dest, 0);
@@ -180,7 +184,7 @@ void *handle_request(void *args) {
 
 	/* default */	
 	} else {
-		send_response(fd, "unknown", cal, " ", " ", "invalid command", NULL, 0);
+		send_response(fd, "unknown", cal, " ", "false", "invalid command", NULL, 0);
 	}
 
 
