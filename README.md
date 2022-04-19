@@ -1,4 +1,4 @@
-# Networks_Project2
+# mycal
 
 ## How to use
 >Run `./mycalserver` to start server (use -mt for multi-threads)
